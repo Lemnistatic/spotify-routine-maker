@@ -97,6 +97,18 @@ SPOTIFY_CLIENT_SECRET=your_client_secret
 ```
 py -m uvicorn main:app --reload --port 3000
 ```
+
+### Authentication Note (Important)
+
+Spotify authentication must be initiated directly from the browser. OAuth redirects do not work correctly when triggered from Swagger UI.
+
+After starting the server, open this link manually in your browser to log in:
+
+```
+http://127.0.0.1:3000/auth/login
+```
+
+Once authentication is complete, you can use all other API endpoints normally through Swagger.
 ### 5. Open API docs (Swagger)
 ```
 http://127.0.0.1:3000/docs
