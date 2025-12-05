@@ -82,21 +82,47 @@ git clone https://github.com/your-username/spotify-routine-maker.git
 cd spotify-routine-maker
 ```
 
-###2. Install dependencies
+### 2. Install dependencies
 ```
 pip install -r requirements.txt
 ```
-###3. Set up environment variables
+### 3. Set up environment variables
 
 Create a .env file using .env.example:
 ```
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
 ```
-###4. Run the server
+### 4. Run the server
 ```
 py -m uvicorn main:app --reload --port 3000
 ```
-###5. Open API docs (Swagger)
+### 5. Open API docs (Swagger)
 ```
 http://127.0.0.1:3000/docs
+```
+## Planned Upgrades
+
+- Frontend control panel (React)
+
+- Routine editor UI (drag-and-drop)
+
+- Persistent routine storage
+
+- Smarter scheduling logic
+
+- ML-driven adaptive routines based on usage patterns
+
+## Motivation
+
+Music strongly influences focus, mood, and productivity.
+This project explores structured music automation as a productivity system, not just a playlist player.
+
+## Disclaimer
+
+This project is built using Spotify’s public Web API and is not affiliated with Spotify or Apple.
+
+## Author
+
+Built by Suneet Menon
+Backend-focused engineer with interests in automation, ML systems, and product-driven engineering.
