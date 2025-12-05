@@ -80,3 +80,23 @@ The system will:
 ```bash
 git clone https://github.com/your-username/spotify-routine-maker.git
 cd spotify-routine-maker
+```
+
+###2. Install dependencies
+```
+pip install -r requirements.txt
+```
+###3. Set up environment variables
+
+Create a .env file using .env.example:
+```
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+```
+###4. Run the server
+```
+py -m uvicorn main:app --reload --port 3000
+```
+###5. Open API docs (Swagger)
+```
+http://127.0.0.1:3000/docs
