@@ -1,4 +1,4 @@
-# RoutineTunes(Backend MVP)
+# RoutineTunes (Backend MVP)
 
 A backend system that lets users create **time-based music routines** using Spotify playlists — similar to Pomodoro, but powered by music. Users can schedule focus, break, and wind-down blocks that automatically transition based on time.
 
