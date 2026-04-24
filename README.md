@@ -246,6 +246,9 @@ New endpoints:
   - Empty responses
 - Fallback logic across critical flows
 
+## Note:
+
+create one more variable in your .env file called GROQ_API_KEY and put your API key of choice from groq!
 
 ## Motivation
 
