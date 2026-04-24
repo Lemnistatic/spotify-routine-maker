@@ -125,6 +125,128 @@ http://127.0.0.1:3000/docs
 
 - ML-driven adaptive routines based on usage patterns
 
+
+
+
+## Changelog (Recent Updates)
+
+### ✨ Major Additions
+
+#### 1. Integrated Frontend (HTML UI)
+- Backend now serves a full UI (`routinetunes.html`)
+- Includes:
+  - Pomodoro routine builder
+  - Mood-based music system
+  - Real-time playback UI
+  - Device selection + status tracking
+
+---
+
+#### 2. 🎛 Dual Mode System
+- Added two modes:
+  - Pomodoro Mode
+  - Mood Mix Mode
+- Seamless switching in UI
+
+---
+
+#### 3. 🧠 AI Mood Mix (Groq Integration)
+- New endpoints:
+  - `/mood-mix`
+  - `/mood-mix-freetext`
+- Groq is used to:
+  - Interpret mood → valence + energy
+  - Generate search queries
+  - Create DJ-style intros
+
+---
+
+#### 4. 🎧 Mood-Based Track Engine
+- Builds playlists using:
+  - Spotify search API
+  - Audio feature filtering
+- Falls back if audio-features API is blocked
+
+---
+
+#### 5. 📝 Free-Text Mood Input
+- Users can type natural phrases
+- System converts them into:
+  - Mood label
+  - Audio parameters
+  - Playlist
+
+---
+
+#### 6. 🎙 AI DJ Intro Generation
+- Generates short intros per mood
+- Context-aware based on tracks
+
+---
+
+#### 7. 😀 Emoji Suggestion (Groq)
+- Endpoint: `/suggest-emoji`
+- Generates emoji for presets
+
+---
+
+#### 8. ▶ Advanced Playback Controls
+New endpoints:
+- `/play-track`
+- `/pause-playback`
+- `/toggle-play-pause`
+- `/next-track`
+- `/prev-track`
+- `/queue-track`
+- `/now-playing`
+
+---
+
+#### 9. 🔄 Queue Management System
+- Clears queue via playback reset
+- Rebuilds queue dynamically
+- Supports mood-based sequencing
+
+---
+
+#### 10. 📊 Now Playing System
+- Real-time playback tracking:
+  - Track name
+  - Artist
+  - Progress
+  - Album art
+- Includes persistent bottom player UI
+
+---
+
+#### 11. 🎨 Mood-Aware UI
+- Dynamic theming based on mood
+- Visual feedback from audio characteristics
+
+---
+
+#### 12. 🧱 Routine Builder Improvements
+- Drag-and-drop blocks
+- Playlist link parsing
+- Custom preset saving
+
+---
+
+#### 13. 🧾 Logging + Debugging
+- UI logs
+- Environment variable checks
+- `/test-groq` endpoint
+
+---
+
+#### 14. 🛡 Stability Improvements
+- Better error handling for:
+  - Spotify API failures
+  - Missing tokens
+  - Empty responses
+- Fallback logic across critical flows
+
+
 ## Motivation
 
 Music strongly influences focus, mood, and productivity.
@@ -139,3 +261,5 @@ This project is built using Spotify’s public Web API and is not affiliated wit
 ### Built by Suneet Menon
 
 Backend-focused engineer with interests in automation, ML systems, and product-driven engineering.
+
+
