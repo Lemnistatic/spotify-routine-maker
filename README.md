@@ -261,8 +261,6 @@ This project is built using Spotify’s public Web API and is not affiliated wit
 
 ## Author
 
-### Built by Suneet Menon
-
-Backend-focused engineer with interests in automation, ML systems, and product-driven engineering.
+### Built by Suneet Menon :D
 
 
