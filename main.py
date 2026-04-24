@@ -179,6 +179,44 @@ def pause_playback():
                  headers={"Authorization": f"Bearer {t}"})
     return {"status": "paused"}
 
+@app.post("/play-mood-tracks")
+def play_mood_tracks(data: dict = Body(...)):
+    """Play a list of track URIs — replaces Spotify's entire queue."""
+    t = _token()
+    if not t: return {"error": "Not authenticated"}
+    uris = data.get("uris", [])
+    if not uris: return {"error": "No URIs provided"}
+    devices = requests.get("https://api.spotify.com/v1/me/player/devices",
+                           headers={"Authorization": f"Bearer {t}"}).json()
+    if not devices.get("devices"): return {"error": "No active devices. Open Spotify first."}
+    device_id = devices["devices"][0]["id"]
+    r = requests.put(
+        f"https://api.spotify.com/v1/me/player/play?device_id={device_id}",
+        headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"},
+        json={"uris": uris}  # uris[] replaces queue entirely — no context_uri
+    )
+    if r.status_code in (200, 204):
+        return {"status": "playing", "track_count": len(uris)}
+    return {"error": f"Spotify returned {r.status_code}: {r.text[:100]}"}
+
+@app.post("/switch-device")
+def switch_device(data: dict = Body(...)):
+    """Transfer playback to a different device."""
+    t = _token()
+    if not t: return {"error": "Not authenticated"}
+    device_id = data.get("device_id")
+    if not device_id: return {"error": "No device_id provided"}
+    r = requests.put(
+        "https://api.spotify.com/v1/me/player",
+        headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"},
+        json={"device_ids": [device_id], "play": True}
+    )
+    if r.status_code in (200, 204):
+        return {"status": "ok"}
+    return {"error": f"Spotify returned {r.status_code}"}
+
+
+
 @app.post("/prev-track")
 def prev_track():
     t = _token()
@@ -208,14 +246,15 @@ def queue_track(data: dict = Body(...)):
 # ── Mood Mix ──────────────────────────────────────────────────────────────────
 @app.get("/suggest-emoji")
 def suggest_emoji(name: str):
-    if not GROQ_API_KEY:
+    key = os.getenv("GROQ_API_KEY")   # ← was using module-level GROQ_API_KEY
+    if not key:
         return {"emoji": "✨"}
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "system", "content": "You are an emoji picker. Reply with ONLY a single emoji character that best represents the given routine name. No text, no punctuation, just one emoji."},
                     {"role": "user", "content": f"Routine name: {name}"}
@@ -386,7 +425,7 @@ def mood_mix_freetext(data: dict = Body(...)):
         # ── Step 3: Audio features filter (with graceful 403 fallback) ───────
         matched = []
         try:
-            for i in range(0, min(len(track_ids), 100), 100):
+            for i in range(0, min(len(track_ids), 150), 100):
                 batch = track_ids[i:i+100]
                 af_r = requests.get("https://api.spotify.com/v1/audio-features",
                     params={"ids": ",".join(batch)},
@@ -443,7 +482,7 @@ def test_groq():
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={"model": "llama3-8b-8192", "messages": [{"role": "user", "content": "Say hello in 5 words."}], "max_tokens": 20},
+            json={"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": "Say hello in 5 words."}], "max_tokens": 20},
             timeout=8
         )
         return {"status": "ok", "http_code": r.status_code, "response": r.json()}
@@ -463,7 +502,7 @@ def _groq_dj_intro(mood: str, tracks: list) -> str:
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "system", "content": "You are a music DJ. Write exactly 2 punchy sentences as a playlist intro. Be specific to the mood. No hashtags, no emojis, no quotes."},
                     {"role": "user",   "content": f"Mood: {mood}. First tracks: {names}. Write the DJ intro."}
@@ -508,14 +547,15 @@ def _groq_interpret_mood(text: str) -> dict:
         default = {"valence_min":0.3,"valence_max":0.6,"energy_min":0.3,"energy_max":0.65,
                    "queries":["mood music playlist","emotional indie","atmospheric songs"],"color":"#1DB954","mood_label":text[:20]}
 
-    if not GROQ_API_KEY:
+    key = os.getenv("GROQ_API_KEY")  # re-read at call time — module-level global may be stale
+    if not key:
         return default
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "system", "content": (
                         "You are a music AI. Convert a mood description into Spotify audio parameters. "
@@ -549,15 +589,16 @@ def _groq_interpret_mood(text: str) -> dict:
 
 
 def _groq_dj_intro_custom(text: str, label: str, tracks: list) -> str:
-    if not GROQ_API_KEY:
+    key = os.getenv("GROQ_API_KEY")  # re-read at call time
+    if not key:
         return f"Mix crafted for: {text}. {len(tracks)} tracks selected."
     try:
         names = ", ".join(f"{t['name']} by {t['artist']}" for t in tracks[:4])
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "system", "content": "You are a music DJ. Write exactly 2 punchy sentences as a mix intro. Reference the specific mood description. No hashtags, no emojis, no quotes."},
                     {"role": "user", "content": f"Someone said: '{text}'. I built them a mix labeled '{label}'. Opening tracks: {names}. Write the DJ intro."}
@@ -567,27 +608,6 @@ def _groq_dj_intro_custom(text: str, label: str, tracks: list) -> str:
         return r.json()["choices"][0]["message"]["content"].strip()
     except:
         return f"Built for: {text}. {len(tracks)} tracks, dialled in."
-
-
-    if not GROQ_API_KEY:
-        return f"Your {mood} mix is locked in. {len(tracks)} tracks, filtered by audio valence."
-    try:
-        names = ", ".join(f"{t['name']} by {t['artist']}" for t in tracks[:4])
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": "llama3-8b-8192",
-                "messages": [
-                    {"role": "system", "content": "You are a music DJ. Write exactly 2 punchy sentences as a mood mix intro. Be specific to the mood. No hashtags, no emojis, no quotes."},
-                    {"role": "user",   "content": f"Mood: {mood}. Opening tracks: {names}. Write the DJ intro now."}
-                ],
-                "max_tokens": 80, "temperature": 0.85,
-            }, timeout=8)
-        return r.json()["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        print(f"Groq error: {e}")
-        return f"Dialing in your {mood} frequency. {len(tracks)} tracks, handpicked by valence."
 
 # ── Routine ───────────────────────────────────────────────────────────────────
 @app.post("/start-dynamic-routine")

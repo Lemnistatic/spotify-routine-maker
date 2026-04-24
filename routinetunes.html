@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -455,24 +455,37 @@ function renderMoodGrid(){
     </button>`).join('');
 }
 
-// ── Clear Spotify queue ───────────────────────────────────────────────────────
-// Spotify has no clear-queue API. The trick: play a track using `uris` (not
-// context_uri). This starts a fresh single-track session and wipes the old queue.
-// We then immediately queue the new mood tracks on top of it.
-async function clearSpotifyQueue(){
+// ── Queue management ──────────────────────────────────────────────────────────
+// Spotify has no clear-queue API.
+// Solution: /play-mood-tracks sends ALL tracks as a uris[] array at once.
+// Spotify replaces its entire queue with whatever is in that array.
+async function loadMoodTracks(tracks){
+  if(!tracks.length) return;
   try{
-    await fetch(`${API}/pause-playback`,{method:'POST'});
-  }catch{}
-  // Small delay to let Spotify register the pause before we start new playback
-  await new Promise(r=>setTimeout(r,400));
+    // Send first 10 tracks as uris[] — this replaces Spotify's queue entirely
+    const uris = tracks.slice(0,10).map(t=>t.uri);
+    const r = await fetch(`${API}/play-mood-tracks`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({uris})
+    });
+    const d = await r.json();
+    if(d.status==='playing'){
+      isPlayingMusic=true;
+      log(`Queue replaced with ${uris.length} tracks`,'success');
+      toast('▶ Mix loaded','ok');
+    } else {
+      log(d.error||'Playback failed — is Spotify open?','error');
+      toast(d.error||'Playback failed','err');
+    }
+  }catch(e){
+    log('Load failed: '+e.message,'error');
+  }
 }
 
 async function selectMood(key,color){
-  // Clear existing queue before loading new mood
   moodQueue=[];
   queuedCount=0;
-  await clearSpotifyQueue();
-
   activeMood=key;
   document.getElementById('currentMoodLabel').textContent=key;
   document.documentElement.style.setProperty('--accent',color);
@@ -488,14 +501,10 @@ async function selectMood(key,color){
     moodQueue=[...d.tracks];
     renderMoodResults(d);
     if(moodQueue.length>0){
-      await playTrack(moodQueue[0].uri,moodQueue[0].name);
-      for(let i=1;i<Math.min(moodQueue.length,10);i++){
-        await fetch(`${API}/queue-track`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uri:moodQueue[i].uri})});
-      }
+      await loadMoodTracks(moodQueue);
       queuedCount=Math.min(moodQueue.length,10);
       document.getElementById('npMoodBadge').textContent=key;
       document.getElementById('npMoodBadge').style.display='';
-      log(`Queued ${queuedCount} tracks for "${key}" mood`,'success');
     }
   }catch(e){clearInterval(st);ls.classList.remove('show');log('Error: '+e.message,'error');toast('Server error','err');}
 }
@@ -512,7 +521,6 @@ async function submitFreeTextMood(){
 
   // Clear existing queue
   moodQueue=[]; queuedCount=0;
-  await clearSpotifyQueue();
 
   activeMood=text;
   document.getElementById('currentMoodLabel').textContent=text.length>20?text.slice(0,20)+'…':text;
@@ -546,10 +554,7 @@ async function submitFreeTextMood(){
     moodQueue=[...d.tracks];
     renderMoodResults(d);
     if(moodQueue.length>0){
-      await playTrack(moodQueue[0].uri,moodQueue[0].name);
-      for(let i=1;i<Math.min(moodQueue.length,10);i++){
-        await fetch(`${API}/queue-track`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uri:moodQueue[i].uri})});
-      }
+      await loadMoodTracks(moodQueue);
       queuedCount=Math.min(moodQueue.length,10);
       document.getElementById('npMoodBadge').textContent='✦ custom';
       document.getElementById('npMoodBadge').style.display='';
@@ -765,8 +770,36 @@ function renderDevices(devices){
   const list=document.getElementById('deviceList');
   if(!devices.length){list.innerHTML='<div class="empty-state">Open Spotify on any device.</div>';return;}
   const icons={Computer:'🖥️',Smartphone:'📱',Speaker:'🔊',TV:'📺'};
-  list.innerHTML=devices.map(d=>`<div class="device-item ${d.is_active?'active':''}"><span>${icons[d.type]||'🎵'}</span><span class="device-name">${d.name}</span>${d.is_active?'<span class="device-tag">Active</span>':''}</div>`).join('');
+  list.innerHTML=devices.map(d=>`
+    <div class="device-item ${d.is_active?'active':''}"
+         onclick="switchDevice('${d.id}','${esc(d.name)}')"
+         style="cursor:pointer" title="Switch to ${esc(d.name)}">
+      <span>${icons[d.type]||'🎵'}</span>
+      <span class="device-name">${esc(d.name)}</span>
+      ${d.is_active
+        ? '<span class="device-tag">Active</span>'
+        : '<span style="font-family:\'Space Mono\',monospace;font-size:0.52rem;color:var(--muted)">tap to switch</span>'
+      }
+    </div>`).join('');
   log('Found '+devices.length+' device(s)','success');
+}
+
+async function switchDevice(deviceId, name){
+  try{
+    const r=await fetch(`${API}/switch-device`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({device_id:deviceId})
+    });
+    const d=await r.json();
+    if(d.status==='ok'){
+      toast('Switched to '+name,'ok');
+      log('Active device: '+name,'success');
+      setTimeout(fetchDevices,1200); // refresh after Spotify updates
+    } else {
+      toast(d.error||'Switch failed','err');
+    }
+  }catch{ toast('Switch failed','err'); }
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
